@@ -1,7 +1,7 @@
 # speechmatics_python
 Example script (supported) to help you integrate with our API
 
-This code was developed and tested with Python 2.7.9  
+This code was developed and tested with Python 2.7.12 and Python 3.5.2   
 
 This is an example script for uploading audio files and saving the transcript in a .json file  
 
