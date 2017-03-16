@@ -50,14 +50,14 @@ class SpeechmaticsClient(object):
             files = {'data_file': open(audio_file, "rb")}
         except IOError as ex:
             logging.error("Problem opening audio file {}".format(audio_file))
-            raise IOError(ex)
+            raise
 
         if text_file:
             try:
                 files['text_file'] = open(text_file, "rb")
             except IOError as ex:
                 logging.error("Problem opening text file {}".format(text_file))
-                raise IOError(ex)
+                raise
 
         data = {"model": lang}
 
