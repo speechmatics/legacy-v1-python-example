@@ -5,10 +5,23 @@ Example script for integrating with the Speechmatics API
 
 import codecs
 import json
-import sys
 import time
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import requests
+
+
+class SpeechmaticsError(Exception):
+    """
+    For errors that are specific to Speechmatics systems and pipelines.
+    """
+
+    def __init__(self, msg, returncode=1):
+        super(SpeechmaticsError, self).__init__(msg)
+        self.msg = msg
+        self.returncode = returncode
+
+    def __str__(self):
+        return repr(self.msg)
 
 
 class SpeechmaticsClient(object):
@@ -29,7 +42,6 @@ class SpeechmaticsClient(object):
         If upload suceeds then this method will return the id of the new job
 
         If succesful returns an integer representing the job id
-        If unsuccessful will print an error to terminal and exit(1)
         """
 
         url = "".join([self.base_url, '/user/', self.api_user_id, '/jobs/'])
@@ -38,83 +50,69 @@ class SpeechmaticsClient(object):
             files = {'data_file': open(audio_file, "rb")}
         except IOError as ex:
             print "Problem opening audio file {}".format(audio_file)
-            print ex
-            sys.exit(1)
+            raise IOError(ex)
 
         if text_file:
             try:
                 files['text_file'] = open(text_file, "rb")
             except IOError as ex:
                 print "Problem opening text file {}".format(text_file)
-                print ex
-                sys.exit(1)
+                raise IOError(ex)
 
         data = {"model": lang}
 
-        try:
-            request = requests.post(url, data=data, files=files, params=params)
-            if request.status_code == 200:
-                json_out = json.loads(request.text)
-                return json_out['id']
-            else:
-                print "Attempt to POST job failed with code {}".format(request.status_code)
-                if request.status_code == 400:
-                    print ("Common causes of this error are:\n"
-                           "Malformed arguments\n"
-                           "Missing data file\n"
-                           "Absent / unsupported language selection.")
-                elif request.status_code == 401:
-                    print ("Common causes of this error are:\n"
-                           "Invalid user id or authentication token.")
-                elif request.status_code == 403:
-                    print ("Common causes of this error are:\n"
-                           "Insufficient credit\n"
-                           "User id not in our database\n"
-                           "Incorrect authentication token.")
-                elif request.status_code == 429:
-                    print ("Common causes of this error are:\n"
-                           "You are submitting too many POSTs in a short period of time.")
-                elif request.status_code == 503:
-                    print ("Common causes of this error are:\n"
-                           "The system is temporarily unavailable or overloaded.\n"
-                           "Your POST will typically succeed if you try again soon.")
-                print ("If you are still unsure why your POST failed please contact speechmatics:"
-                       "support@speechmatics.com")
-                sys.exit(1)
-
-        except requests.exceptions.RequestException as exc:
-            print exc
-            sys.exit(1)
+        request = requests.post(url, data=data, files=files, params=params)
+        if request.status_code == 200:
+            json_out = json.loads(request.text)
+            return json_out['id']
+        else:
+            err_msg = "Attempt to POST job failed with code {}\n".format(request.status_code)
+            if request.status_code == 400:
+                err_msg += ("Common causes of this error are:\n"
+                            "Malformed arguments\n"
+                            "Missing data file\n"
+                            "Absent / unsupported language selection.")
+            elif request.status_code == 401:
+                err_msg += ("Common causes of this error are:\n"
+                            "Invalid user id or authentication token.")
+            elif request.status_code == 403:
+                err_msg += ("Common causes of this error are:\n"
+                            "Insufficient credit\n"
+                            "User id not in our database\n"
+                            "Incorrect authentication token.")
+            elif request.status_code == 429:
+                err_msg += ("Common causes of this error are:\n"
+                            "You are submitting too many POSTs in a short period of time.")
+            elif request.status_code == 503:
+                err_msg += ("Common causes of this error are:\n"
+                            "The system is temporarily unavailable or overloaded.\n"
+                            "Your POST will typically succeed if you try again soon.")
+            err_msg += ("If you are still unsure why your POST failed please contact speechmatics:"
+                        "support@speechmatics.com")
+            raise SpeechmaticsError(err_msg)
 
     def job_details(self, job_id):
         """
         Checks on the status of the given job.
 
         If successfuly returns a dictionary of job details.
-        If unsuccessful exit(1)
         """
         params = {'auth_token': self.api_token}
         url = "".join([self.base_url, '/user/', self.api_user_id, '/jobs/', str(job_id), '/'])
-        try:
-            request = requests.get(url, params=params)
-            if request.status_code == 200:
-                return json.loads(request.text)['job']
-            else:
-                print "Attempt to GET job details failed with code {}".format(request.status_code)
-                print ("If you are still unsure why your POST failed please contact speechmatics:"
-                       "support@speechmatics.com")
-                sys.exit(1)
-
-        except requests.exceptions.RequestException as exc:
-            print exc
-            sys.exit(1)
+        request = requests.get(url, params=params)
+        if request.status_code == 200:
+            return json.loads(request.text)['job']
+        else:
+            err_msg = ("Attempt to GET job details failed with code {}\n"
+                       "If you are still unsure why your POST failed please contact speechmatics:"
+                       "support@speechmatics.com").format(request.status_code)
+            raise SpeechmaticsError(err_msg)
 
     def get_output(self, job_id, frmat, job_type):
         """
         Downloads transcript for given transcription job.
 
         If successful returns the output.
-        If unsuccessful does exit(1)
         """
         params = {'auth_token': self.api_token}
         if frmat and job_type == 'transcription':
@@ -122,19 +120,14 @@ class SpeechmaticsClient(object):
         if frmat and job_type == 'alignment':
             params['tags'] = 'one_per_line'
         url = "".join([self.base_url, '/user/', self.api_user_id, '/jobs/', str(job_id), '/', job_type])
-        try:
-            request = requests.get(url, params=params)
-            if request.status_code == 200:
-                return request.text
-            else:
-                print "Attempt to GET job details failed with code {}".format(request.status_code)
-                print ("If you are still unsure why your POST failed please contact speechmatics:"
-                       "support@speechmatics.com")
-                sys.exit(1)
-
-        except requests.exceptions.RequestException as exc:
-            print exc
-            sys.exit(1)
+        request = requests.get(url, params=params)
+        if request.status_code == 200:
+            return request.text
+        else:
+            err_msg = ("Attempt to GET job details failed with code {}\n"
+                       "If you are still unsure why your POST failed please contact speechmatics:"
+                       "support@speechmatics.com").format(request.status_code)
+            raise SpeechmaticsError(err_msg)
 
 
 def parse_args():
@@ -186,14 +179,12 @@ def main():
         details = client.job_details(job_id)
 
     if details['job_status'] == 'unsupported_file_format':
-        print "File was in an unsupported file format and could not be transcribed."
-        print "You have been reimbursed all credits for this job."
-        sys.exit(1)
+        raise SpeechmaticsError("File was in an unsupported file format and could not be transcribed. "
+                                "You have been reimbursed all credits for this job.")
 
     if details['job_status'] == 'could_not_align':
-        print "Could not align text and audio file."
-        print "You have been reimbursed all credits for this job."
-        sys.exit(1)
+        raise SpeechmaticsError("Could not align text and audio file. "
+                                "You have been reimbursed all credits for this job.")
 
     print "Processing complete, getting output"
 
