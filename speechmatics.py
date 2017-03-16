@@ -1,10 +1,10 @@
-#!/usr/bin/python
 """
 Example script for integrating with the Speechmatics API
 """
 
 import codecs
 import json
+import logging
 import time
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import requests
@@ -21,7 +21,7 @@ class SpeechmaticsError(Exception):
         self.returncode = returncode
 
     def __str__(self):
-        return repr(self.msg)
+        return self.msg
 
 
 class SpeechmaticsClient(object):
@@ -49,14 +49,14 @@ class SpeechmaticsClient(object):
         try:
             files = {'data_file': open(audio_file, "rb")}
         except IOError as ex:
-            print "Problem opening audio file {}".format(audio_file)
+            logging.error("Problem opening audio file {}".format(audio_file))
             raise IOError(ex)
 
         if text_file:
             try:
                 files['text_file'] = open(text_file, "rb")
             except IOError as ex:
-                print "Problem opening text file {}".format(text_file)
+                logging.error("Problem opening text file {}".format(text_file))
                 raise IOError(ex)
 
         data = {"model": lang}
@@ -87,7 +87,7 @@ class SpeechmaticsClient(object):
                 err_msg += ("Common causes of this error are:\n"
                             "The system is temporarily unavailable or overloaded.\n"
                             "Your POST will typically succeed if you try again soon.")
-            err_msg += ("If you are still unsure why your POST failed please contact speechmatics:"
+            err_msg += ("\nIf you are still unsure why your POST failed please contact speechmatics:"
                         "support@speechmatics.com")
             raise SpeechmaticsError(err_msg)
 
@@ -163,17 +163,19 @@ def main():
     """
     Example way to use the Speechmatics Client to process a job
     """
+    logging.basicConfig(level=logging.INFO)
+
     opts = parse_args()
 
     client = SpeechmaticsClient(opts.id, opts.token)
 
     job_id = client.job_post(opts.audio, opts.lang, opts.text)
-    print "Your job has started with ID {}".format(job_id)
+    logging.info("Your job has started with ID {}".format(job_id))
 
     details = client.job_details(job_id)
 
     while details[u'job_status'] not in ['done', 'expired', 'unsupported_file_format', 'could_not_align']:
-        print "Waiting for job to be processed.  Will check again in {} seconds".format(details['check_wait'])
+        logging.info("Waiting for job to be processed.  Will check again in {} seconds".format(details['check_wait']))
         wait_s = details['check_wait']
         time.sleep(wait_s)
         details = client.job_details(job_id)
@@ -186,7 +188,7 @@ def main():
         raise SpeechmaticsError("Could not align text and audio file. "
                                 "You have been reimbursed all credits for this job.")
 
-    print "Processing complete, getting output"
+    logging.info("Processing complete, getting output")
 
     if details['job_type'] == 'transcription':
         job_type = 'transcript'
@@ -200,13 +202,13 @@ def main():
                 ouf.write(json.dumps(output, indent=4))
             else:
                 ouf.write(output)
-        print "Your job output has been written to file {}".format(opts.output)
+        logging.info("Your job output has been written to file {}".format(opts.output))
     else:
-        print "Your job output:"
+        logging.info("Your job output:")
         if job_type == 'transcript' and opts.format:
-            print json.dumps(output, indent=4)
+            print(json.dumps(output, indent=4))
         else:
-            print output
+            print(output)
 
 
 if __name__ == '__main__':
