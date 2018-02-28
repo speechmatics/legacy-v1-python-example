@@ -115,7 +115,7 @@ class SpeechmaticsClient(object):
         If successful returns the output.
         """
         params = {'auth_token': self.api_token}
-        if frmat and job_type == 'transcription':
+        if frmat and job_type == 'transcript':
             params['format'] = 'txt'
         if frmat and job_type == 'alignment':
             params['tags'] = 'one_per_line'
