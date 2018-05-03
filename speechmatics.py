@@ -35,7 +35,7 @@ class SpeechmaticsClient(object):
         self.api_token = api_token
         self.base_url = base_url
 
-    def job_post(self, audio_file, lang, text_file=None):
+    def job_post(self, opts):
         """
         Upload a new audio file to speechmatics for transcription
         If text file is specified upload that as well for an alignment job
@@ -47,19 +47,26 @@ class SpeechmaticsClient(object):
         url = "".join([self.base_url, '/user/', self.api_user_id, '/jobs/'])
         params = {'auth_token': self.api_token}
         try:
-            files = {'data_file': open(audio_file, "rb")}
+            files = {'data_file': open(opts.audio, "rb")}
         except IOError as ex:
-            logging.error("Problem opening audio file {}".format(audio_file))
+            logging.error("Problem opening audio file {}".format(opts.audio))
             raise
 
-        if text_file:
+        if opts.text:
             try:
-                files['text_file'] = open(text_file, "rb")
+                files['text_file'] = open(opts.text, "rb")
             except IOError as ex:
-                logging.error("Problem opening text file {}".format(text_file))
+                logging.error("Problem opening text file {}".format(opts.text))
                 raise
 
-        data = {"model": lang}
+        data = {"model": opts.lang}
+
+        if opts.notification:
+            data['notification'] = opts.notification
+            if opts.notification == 'callback':
+                data['callback'] = opts.callback_url
+        if opts.notification_email:
+            data['notification_email_address'] = opts.notification_email
 
         request = requests.post(url, data=data, files=files, params=params)
         if request.status_code == 200:
@@ -156,7 +163,20 @@ def parse_args():
                         help="Return results in alternate format.\n"
                              "Default for transcription is json, alternate is text.\n"
                              "Default for alignment is one timing per word, alternate is one per line")
-    return parser.parse_args()
+    parser.add_argument('-n', '--notification', type=str, choices=['email', 'none', 'callback'], required=False,
+                        help="Type of notification to use (default is 'email').\n", default=None)
+    parser.add_argument('-e', '--notification-email', type=str, required=False,
+                        help="Alternative email address to send notification to upon job completion.\n", default=None)
+    parser.add_argument('-u', '--callback-url', type=str, required=False,
+                        help="Callback URL to use.", default=None)
+    parsed = parser.parse_args()
+
+    if parsed.notification_email is not None and parsed.notification in ['none', 'callback']:
+        parser.error("You specified an alternative email address but selected '{}' notification.".format(parsed.notification))
+    if parsed.notification == 'callback' and parsed.callback_url is None:
+        parser.error("You selected notification type of callback but did not provide a callback URL.")
+
+    return parsed
 
 
 def main():
@@ -169,7 +189,7 @@ def main():
 
     client = SpeechmaticsClient(opts.id, opts.token)
 
-    job_id = client.job_post(opts.audio, opts.lang, opts.text)
+    job_id = client.job_post(opts)
     logging.info("Your job has started with ID {}".format(job_id))
 
     details = client.job_details(job_id)
