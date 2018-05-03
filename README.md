@@ -13,7 +13,7 @@ pip install requests
 
 ## Example usage:
 ```
-./speechmatics.py -f example.mp3 -l en-US -i $user_id -t $auth_token -o example.json  
+./speechmatics.py -a example.mp3 -l en-US -i $user_id -k $auth_token -o example.json  
 ```
 
 In this example the script uploads 'example.mp3', transcribes it using our en-US speech to text product and saves the resulting transcription as 'example.json' when the job has completed.
