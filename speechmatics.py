@@ -129,6 +129,7 @@ class SpeechmaticsClient(object):
         url = "".join([self.base_url, '/user/', self.api_user_id, '/jobs/', str(job_id), '/', job_type])
         request = requests.get(url, params=params)
         if request.status_code == 200:
+            request.encoding = 'utf-8'
             return request.text
         else:
             err_msg = ("Attempt to GET job details failed with code {}\n"
@@ -228,7 +229,7 @@ def main():
         if job_type == 'transcript' and opts.format:
             print(json.dumps(output, indent=4))
         else:
-            print(output)
+            print(output.encode('utf-8'))
 
 
 if __name__ == '__main__':
