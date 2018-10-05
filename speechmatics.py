@@ -61,7 +61,7 @@ class SpeechmaticsClient(object):
 
         data = {"model": opts.lang}
         if "=" in data['model']:
-            (data['model'], data['version']) = data['model'].split('=', maxsplit=1)
+            (data['model'], data['version']) = data['model'].split('=', 1)
 
         if opts.notification:
             data['notification'] = opts.notification
