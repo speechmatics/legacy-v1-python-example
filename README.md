@@ -6,7 +6,7 @@ This code was developed and tested with Python 2.7.12 and Python 3.5.2
 
 This is an example script for uploading audio files and saving the transcript in a .json file  
 
-> NOTE: For information on how to use the current V2 Speechmatics API,
+> NOTE: For information on how to use the current Speechmatics Realtime ASR API v2,
 > see [speechmatics-python](https://github.com/speechmatics/speechmatics-python) repository.
 
 
